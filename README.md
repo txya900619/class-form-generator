@@ -1,6 +1,6 @@
 # Class Form Generator
 
-a tool which deploy on google apps script can auto generate group class signup form and feedback form.e
+a tool which deploy on google apps script can auto generate group class signup form and feedback form.
 
 ## How to use
 

@@ -4,11 +4,12 @@ function doGet() {
 
 function doPost(e) {
   const param = e.parameter;
-  const title = param.title;
+  const formTitle = param.formTitle;
   const semester = param.semester;
   const folderName = param.folderName;
   const courseStatement = param.courseStatement;
-  const description = param.description;
+  const classInformation = param.classInformation;
+  const signUpFormDescription = param.signUpFormDescription;
   const rootFolder = DriveApp.getFolderById(
     "1PnQObOfZwq3IYleIDkUS9wCGUXrnmhe6"
   );
@@ -23,11 +24,11 @@ function doPost(e) {
   createSignUpForm(
     folderName,
     currentFolder,
-    description,
+    signUpFormDescription,
     courseStatement,
-    title
+    formTitle
   );
-  createFeedbackForm(folderName, currentFolder, title);
+  createFeedbackForm(folderName, currentFolder, formTitle);
 }
 
 function createSignUpForm(
@@ -148,4 +149,58 @@ function setFeedbackItem(formID: string, title: string, spreadSheetID: string) {
     .setRequired(true);
   form.addParagraphTextItem().setTitle("有什麼其他的建議給我們嗎？");
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadSheetID);
+}
+
+function getSuccessEmailBody(formTitle: string, emailBody: string): string {
+  return (
+    "Hi, \n\n" +
+    `感謝您報名 NPC 北科程式設計研究社 ${formTitle}\n` +
+    "在課程開始前一天，我們會再次寄信提醒您！\n\n" +
+    "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。\n\n" +
+    emailBody +
+    "\n若有任何疑問，歡迎隨時連絡我們。\n" +
+    "期待在課程與您相見:)\n\n" +
+    "Best regards,\n" +
+    "NPC 北科程式設計研究社"
+  );
+}
+
+function getSuccessEmailSubject(formTitle: string): string {
+  return `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【正取】`;
+}
+
+function getWaitingListEmailBody(formTitle: string): string {
+  return (
+    "Hi, \n\n" +
+    `感謝您報名 NPC 北科程式設計研究社 ${formTitle}\n` +
+    "為了保證上課品質，我們人數已達到上限，如果有人放棄資格，我們會儘速通知您！\n\n" +
+    "若有任何疑問，歡迎隨時連絡我們。\n" +
+    "由衷感謝您:)\n\n" +
+    "Best regards,\n" +
+    "NPC 北科程式設計研究社"
+  );
+}
+
+function getWaitingListEmailSubject(formTitle: string): string {
+  return `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【備取】`;
+}
+
+function priorNotificationEmailBody(
+  formTitle: string,
+  classInformation: string
+): string {
+  return (
+    "您好, \n\n" +
+    `提醒您，【 ${formTitle} 】即將於明天晚上舉辦！\n` +
+    "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。\n\n" +
+    classInformation +
+    "\n若有任何疑問，歡迎隨時連絡我們。\n" +
+    "期待在課程與您相見:)\n\n" +
+    "Best regards,\n" +
+    "NPC 北科程式設計研究社"
+  );
+}
+
+function priorNotificationEmailSubject(formTitle: string): string {
+  return `【 ${formTitle} 】行前通知信 by NPC `;
 }

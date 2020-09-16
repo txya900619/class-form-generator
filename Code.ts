@@ -1,3 +1,8 @@
+let successEmail: Map<string, Email> = new Map<string, Email>();
+let waitingListEmail: Map<string, Email> = new Map<string, Email>();
+let priorNotificationEmail: Map<string, Email> = new Map<string, Email>();
+let maxNumberOfStudentMap: Map<string, number> = new Map<string, number>();
+let numberOfWaitingListMap: Map<string, number> = new Map<string, number>();
 function doGet() {
   return ContentService.createTextOutput("cc");
 }
@@ -10,6 +15,8 @@ function doPost(e) {
   const courseStatement = param.courseStatement;
   const classInformation = param.classInformation;
   const signUpFormDescription = param.signUpFormDescription;
+  const maxNumberOfStudent = param.maxNumberOfStudent;
+  const numberOfWaitingList = param.numberOfWaitingList;
   const rootFolder = DriveApp.getFolderById(
     "1PnQObOfZwq3IYleIDkUS9wCGUXrnmhe6"
   );
@@ -26,7 +33,10 @@ function doPost(e) {
     currentFolder,
     signUpFormDescription,
     courseStatement,
-    formTitle
+    formTitle,
+    classInformation,
+    maxNumberOfStudent,
+    numberOfWaitingList
   );
   createFeedbackForm(folderName, currentFolder, formTitle);
 }
@@ -36,7 +46,10 @@ function createSignUpForm(
   currentFolder: GoogleAppsScript.Drive.Folder,
   description: string,
   courseStatement: string,
-  title: string
+  title: string,
+  classInformation: string,
+  maxNumberOfStudent: number,
+  numberOfWaitingList: number
 ) {
   const formID = createFormInFolder(folderName + " 報名表單", currentFolder);
   const spreadsheetsID = createSpreadsheetsInFolder(
@@ -50,6 +63,15 @@ function createSignUpForm(
     title,
     spreadsheetsID
   );
+  setSuccessEmail(spreadsheetsID, title, classInformation);
+  setWaitingListEmail(spreadsheetsID, title);
+  setPriorNotificationEmail(spreadsheetsID, title, classInformation);
+  maxNumberOfStudentMap.set(spreadsheetsID, maxNumberOfStudent);
+  numberOfWaitingListMap.set(spreadsheetsID, numberOfWaitingList);
+  ScriptApp.newTrigger("SignUpFormOnSubmit")
+    .forSpreadsheet(SpreadsheetApp.openById(spreadsheetsID))
+    .onFormSubmit()
+    .create();
 }
 
 function createFeedbackForm(
@@ -151,45 +173,47 @@ function setFeedbackItem(formID: string, title: string, spreadSheetID: string) {
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadSheetID);
 }
 
-function getSuccessEmailBody(formTitle: string, emailBody: string): string {
-  return (
+function setSuccessEmail(
+  spreadSheetID: string,
+  formTitle: string,
+  classInformation: string
+) {
+  const subject = `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【正取】`;
+  const body =
     "Hi, \n\n" +
     `感謝您報名 NPC 北科程式設計研究社 ${formTitle}\n` +
     "在課程開始前一天，我們會再次寄信提醒您！\n\n" +
     "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。\n\n" +
-    emailBody +
+    classInformation +
     "\n若有任何疑問，歡迎隨時連絡我們。\n" +
     "期待在課程與您相見:)\n\n" +
     "Best regards,\n" +
-    "NPC 北科程式設計研究社"
-  );
+    "NPC 北科程式設計研究社";
+
+  successEmail.set(spreadSheetID, { subject, body });
 }
 
-function getSuccessEmailSubject(formTitle: string): string {
-  return `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【正取】`;
-}
-
-function getWaitingListEmailBody(formTitle: string): string {
-  return (
+function setWaitingListEmail(spreadSheetID: string, formTitle: string) {
+  const subject = `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【備取】`;
+  const body =
     "Hi, \n\n" +
     `感謝您報名 NPC 北科程式設計研究社 ${formTitle}\n` +
     "為了保證上課品質，我們人數已達到上限，如果有人放棄資格，我們會儘速通知您！\n\n" +
     "若有任何疑問，歡迎隨時連絡我們。\n" +
     "由衷感謝您:)\n\n" +
     "Best regards,\n" +
-    "NPC 北科程式設計研究社"
-  );
+    "NPC 北科程式設計研究社";
+
+  waitingListEmail.set(spreadSheetID, { subject, body });
 }
 
-function getWaitingListEmailSubject(formTitle: string): string {
-  return `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【備取】`;
-}
-
-function priorNotificationEmailBody(
+function setPriorNotificationEmail(
+  spreadSheetID: string,
   formTitle: string,
   classInformation: string
-): string {
-  return (
+) {
+  const subject = `【 ${formTitle} 】行前通知信 by NPC `;
+  const body =
     "您好, \n\n" +
     `提醒您，【 ${formTitle} 】即將於明天晚上舉辦！\n` +
     "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。\n\n" +
@@ -197,10 +221,59 @@ function priorNotificationEmailBody(
     "\n若有任何疑問，歡迎隨時連絡我們。\n" +
     "期待在課程與您相見:)\n\n" +
     "Best regards,\n" +
-    "NPC 北科程式設計研究社"
-  );
+    "NPC 北科程式設計研究社";
+
+  priorNotificationEmail.set(spreadSheetID, { subject, body });
 }
 
-function priorNotificationEmailSubject(formTitle: string): string {
-  return `【 ${formTitle} 】行前通知信 by NPC `;
+function SignUpFormOnSubmit(e: GoogleAppsScript.Events.SheetsOnFormSubmit) {
+  const spreadsheetID = SpreadsheetApp.getActiveSpreadsheet().getId();
+  const range = e.range;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  if (range.getLastRow() <= maxNumberOfStudentMap.get(spreadsheetID)) {
+    sendSuccessEmail(spreadsheetID, range, sheet);
+  } else if (
+    range.getLastRow() <=
+    maxNumberOfStudentMap.get(spreadsheetID) +
+      numberOfWaitingListMap.get(spreadsheetID)
+  ) {
+    sendWaitingList(spreadsheetID, range, sheet);
+  } else {
+    const activeForm = FormApp.openByUrl(
+      SpreadsheetApp.getActiveSpreadsheet().getFormUrl()
+    );
+    activeForm.setCustomClosedFormMessage(
+      "很抱歉，為保證上課品質，報名人數已滿，請等待之後的相關課程"
+    );
+    activeForm.setAcceptingResponses(false);
+  }
+}
+
+function sendSuccessEmail(
+  spreadSheetID: string,
+  range: GoogleAppsScript.Spreadsheet.Range,
+  sheet: GoogleAppsScript.Spreadsheet.Sheet
+) {
+  const emailAddress: string = sheet.getRange(range.getLastRow(), 2).getValue();
+
+  const email: Email = successEmail.get(spreadSheetID);
+
+  MailApp.sendEmail(emailAddress, email.subject, email.body);
+}
+
+function sendWaitingList(
+  spreadSheetID: string,
+  range: GoogleAppsScript.Spreadsheet.Range,
+  sheet: GoogleAppsScript.Spreadsheet.Sheet
+) {
+  const emailAddress: string = sheet.getRange(range.getLastRow(), 2).getValue();
+
+  const email = waitingListEmail.get(spreadSheetID);
+
+  MailApp.sendEmail(emailAddress, email.subject, email.body);
+}
+
+interface Email {
+  subject: string;
+  body: string;
 }

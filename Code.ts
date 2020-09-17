@@ -74,6 +74,11 @@ function createSignUpForm(
   setSuccessEmail(currentFolder, title, classInformation);
   setWaitingListEmail(currentFolder, title);
   setPriorNotificationEmail(currentFolder, title, classInformation);
+
+  ScriptApp.newTrigger("SignUpFormOnSubmit")
+    .forSpreadsheet(SpreadsheetApp.openById(spreadsheetID))
+    .onFormSubmit()
+    .create();
 }
 
 function createFeedbackForm(
@@ -82,22 +87,22 @@ function createFeedbackForm(
   title: string
 ) {
   const formID = createFormInFolder(folderName + " 回饋表單", currentFolder);
-  const spreadSheetID = createSpreadsheetInFolder(
+  const spreadsheetID = createSpreadsheetInFolder(
     folderName + " 回饋表單（回覆）",
     currentFolder
   );
-  setFeedbackItem(formID, title, spreadSheetID);
+  setFeedbackItem(formID, title, spreadsheetID);
 }
 
 function createSpreadsheetInFolder(
   name: string,
   folder: GoogleAppsScript.Drive.Folder
 ): string {
-  const tempSpreadSheetID = SpreadsheetApp.create(name).getId();
-  const tempSpreadSheetFile = DriveApp.getFileById(tempSpreadSheetID);
-  const spreadSheetID = tempSpreadSheetFile.makeCopy(name, folder).getId();
-  tempSpreadSheetFile.setTrashed(true);
-  return spreadSheetID;
+  const tempSpreadsheetID = SpreadsheetApp.create(name).getId();
+  const tempSpreadsheetFile = DriveApp.getFileById(tempSpreadsheetID);
+  const spreadsheetID = tempSpreadsheetFile.makeCopy(name, folder).getId();
+  tempSpreadsheetFile.setTrashed(true);
+  return spreadsheetID;
 }
 
 function createFormInFolder(
@@ -146,7 +151,7 @@ function setSignUpFormItem(
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetID);
 }
 
-function setFeedbackItem(formID: string, title: string, spreadSheetID: string) {
+function setFeedbackItem(formID: string, title: string, spreadsheetID: string) {
   const form = FormApp.openById(formID);
   form.setTitle("Feedback - " + title + " by NPC");
   form.setDescription(
@@ -183,7 +188,7 @@ function setFeedbackItem(formID: string, title: string, spreadSheetID: string) {
     .showOtherOption(true)
     .setRequired(true);
   form.addParagraphTextItem().setTitle("有什麼其他的建議給我們嗎？");
-  form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadSheetID);
+  form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetID);
 }
 
 function addDocumentWithFolderAndNameAndHeaderAndFooter(

@@ -1,8 +1,3 @@
-let successEmail: Map<string, Email> = new Map<string, Email>();
-let waitingListEmail: Map<string, Email> = new Map<string, Email>();
-let priorNotificationEmail: Map<string, Email> = new Map<string, Email>();
-let maxNumberOfStudentMap: Map<string, number> = new Map<string, number>();
-let numberOfWaitingListMap: Map<string, number> = new Map<string, number>();
 function doGet() {
   return ContentService.createTextOutput("cc");
 }
@@ -28,17 +23,38 @@ function doPost(e) {
   } else {
     currentFolder = semesterFolder.createFolder(folderName);
   }
+  const configSpreadsheetID = createConfigSpreadsheet(currentFolder);
+  setConfigSpreadsheet(
+    configSpreadsheetID,
+    maxNumberOfStudent,
+    numberOfWaitingList
+  );
   createSignUpForm(
     folderName,
     currentFolder,
     signUpFormDescription,
     courseStatement,
     formTitle,
-    classInformation,
-    maxNumberOfStudent,
-    numberOfWaitingList
+    classInformation
   );
   createFeedbackForm(folderName, currentFolder, formTitle);
+}
+
+function createConfigSpreadsheet(
+  currentFolder: GoogleAppsScript.Drive.Folder
+): string {
+  const spreadsheetID = createSpreadsheetInFolder("設定", currentFolder);
+  return spreadsheetID;
+}
+
+function setConfigSpreadsheet(
+  spreadSheetID: string,
+  maxNumberOfStudent: number,
+  numberOfWaitingList: number
+) {
+  const sheet = SpreadsheetApp.openById(spreadSheetID).getSheets()[0];
+  sheet.appendRow(["正取人數上限", "備取人數"]);
+  sheet.appendRow([maxNumberOfStudent, numberOfWaitingList]);
 }
 
 function createSignUpForm(
@@ -47,31 +63,17 @@ function createSignUpForm(
   description: string,
   courseStatement: string,
   title: string,
-  classInformation: string,
-  maxNumberOfStudent: number,
-  numberOfWaitingList: number
+  classInformation: string
 ) {
   const formID = createFormInFolder(folderName + " 報名表單", currentFolder);
-  const spreadsheetsID = createSpreadsheetsInFolder(
+  const spreadsheetID = createSpreadsheetInFolder(
     folderName + " 報名表單（回應）",
     currentFolder
   );
-  setSignUpFormItem(
-    formID,
-    description,
-    courseStatement,
-    title,
-    spreadsheetsID
-  );
-  setSuccessEmail(spreadsheetsID, title, classInformation);
-  setWaitingListEmail(spreadsheetsID, title);
-  setPriorNotificationEmail(spreadsheetsID, title, classInformation);
-  maxNumberOfStudentMap.set(spreadsheetsID, maxNumberOfStudent);
-  numberOfWaitingListMap.set(spreadsheetsID, numberOfWaitingList);
-  ScriptApp.newTrigger("SignUpFormOnSubmit")
-    .forSpreadsheet(SpreadsheetApp.openById(spreadsheetsID))
-    .onFormSubmit()
-    .create();
+  setSignUpFormItem(formID, description, courseStatement, title, spreadsheetID);
+  setSuccessEmail(currentFolder, title, classInformation);
+  setWaitingListEmail(currentFolder, title);
+  setPriorNotificationEmail(currentFolder, title, classInformation);
 }
 
 function createFeedbackForm(
@@ -80,14 +82,14 @@ function createFeedbackForm(
   title: string
 ) {
   const formID = createFormInFolder(folderName + " 回饋表單", currentFolder);
-  const spreadSheetID = createSpreadsheetsInFolder(
+  const spreadSheetID = createSpreadsheetInFolder(
     folderName + " 回饋表單（回覆）",
     currentFolder
   );
   setFeedbackItem(formID, title, spreadSheetID);
 }
 
-function createSpreadsheetsInFolder(
+function createSpreadsheetInFolder(
   name: string,
   folder: GoogleAppsScript.Drive.Folder
 ): string {
@@ -104,9 +106,20 @@ function createFormInFolder(
 ): string {
   const tempFormID = FormApp.create(name).getId();
   const tempFormFile = DriveApp.getFileById(tempFormID);
-  const formID = tempFormFile.makeCopy(tempFormFile.getName(), folder).getId();
+  const formID = tempFormFile.makeCopy(name, folder).getId();
   tempFormFile.setTrashed(true);
   return formID;
+}
+
+function createDocsInFolder(
+  name: string,
+  folder: GoogleAppsScript.Drive.Folder
+): string {
+  const tempDocsID = DocumentApp.create(name).getId();
+  const tempDocsFile = DriveApp.getFileById(tempDocsID);
+  const docsID = tempDocsFile.makeCopy(name, folder).getId();
+  tempDocsFile.setTrashed(true);
+  return docsID;
 }
 
 function setSignUpFormItem(
@@ -114,7 +127,7 @@ function setSignUpFormItem(
   description: string,
   courseStatement: string,
   title: string,
-  spreadsheetsID: string
+  spreadsheetID: string
 ): void {
   const form = FormApp.openById(formID);
   form.setTitle(title);
@@ -130,7 +143,7 @@ function setSignUpFormItem(
     .setChoices([choiceItem.createChoice("確認")])
     .setRequired(true);
 
-  form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetsID);
+  form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetID);
 }
 
 function setFeedbackItem(formID: string, title: string, spreadSheetID: string) {
@@ -173,8 +186,19 @@ function setFeedbackItem(formID: string, title: string, spreadSheetID: string) {
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadSheetID);
 }
 
+function addDocumentWithFolderAndNameAndHeaderAndFooter(
+  currentFolder: GoogleAppsScript.Drive.Folder,
+  name: string,
+  header: string,
+  footer: string
+) {
+  const docs = DocumentApp.openById(createDocsInFolder(name, currentFolder));
+  docs.addHeader().setText(header);
+  docs.addFooter().setText(footer);
+}
+
 function setSuccessEmail(
-  spreadSheetID: string,
+  currentFolder: GoogleAppsScript.Drive.Folder,
   formTitle: string,
   classInformation: string
 ) {
@@ -190,10 +214,19 @@ function setSuccessEmail(
     "Best regards,\n" +
     "NPC 北科程式設計研究社";
 
-  successEmail.set(spreadSheetID, { subject, body });
+  addDocumentWithFolderAndNameAndHeaderAndFooter(
+    currentFolder,
+    "正取 email",
+    subject,
+    body
+  );
+  // successEmail.set(spreadSheetID, { subject, body });
 }
 
-function setWaitingListEmail(spreadSheetID: string, formTitle: string) {
+function setWaitingListEmail(
+  currentFolder: GoogleAppsScript.Drive.Folder,
+  formTitle: string
+) {
   const subject = `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【備取】`;
   const body =
     "Hi, \n\n" +
@@ -204,11 +237,16 @@ function setWaitingListEmail(spreadSheetID: string, formTitle: string) {
     "Best regards,\n" +
     "NPC 北科程式設計研究社";
 
-  waitingListEmail.set(spreadSheetID, { subject, body });
+  addDocumentWithFolderAndNameAndHeaderAndFooter(
+    currentFolder,
+    "備取 email",
+    subject,
+    body
+  );
 }
 
 function setPriorNotificationEmail(
-  spreadSheetID: string,
+  currentFolder: GoogleAppsScript.Drive.Folder,
   formTitle: string,
   classInformation: string
 ) {
@@ -223,21 +261,57 @@ function setPriorNotificationEmail(
     "Best regards,\n" +
     "NPC 北科程式設計研究社";
 
-  priorNotificationEmail.set(spreadSheetID, { subject, body });
+  addDocumentWithFolderAndNameAndHeaderAndFooter(
+    currentFolder,
+    "行前 email",
+    subject,
+    body
+  );
+}
+
+function getEmailByName(
+  currentFolder: GoogleAppsScript.Drive.Folder,
+  name: string
+): Email {
+  const docsID = currentFolder.getFilesByName(name).next().getId();
+  const docs = DocumentApp.openById(docsID);
+
+  return {
+    subject: docs.getHeader().getText(),
+    body: docs.getFooter().getText(),
+  };
+}
+
+function getMaxNumberOfStudent(
+  currentFolder: GoogleAppsScript.Drive.Folder
+): number {
+  const spreadsheetID = currentFolder.getFilesByName("設定").next().getId();
+  const sheet = SpreadsheetApp.openById(spreadsheetID).getSheets()[0];
+  const maxNumberOfStudent: number = Number(sheet.getRange(2, 1).getValue());
+  return maxNumberOfStudent;
+}
+
+function getNumberOfWaitingList(
+  currentFolder: GoogleAppsScript.Drive.Folder
+): number {
+  const spreadsheetID = currentFolder.getFilesByName("設定").next().getId();
+  const sheet = SpreadsheetApp.openById(spreadsheetID).getSheets()[0];
+  const numberOfWaitingList: number = Number(sheet.getRange(2, 2).getValue());
+  return numberOfWaitingList;
 }
 
 function SignUpFormOnSubmit(e: GoogleAppsScript.Events.SheetsOnFormSubmit) {
   const spreadsheetID = SpreadsheetApp.getActiveSpreadsheet().getId();
+  const currentFolder = DriveApp.getFileById(spreadsheetID).getParents().next();
   const range = e.range;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  if (range.getLastRow() <= maxNumberOfStudentMap.get(spreadsheetID)) {
-    sendSuccessEmail(spreadsheetID, range, sheet);
+  if (range.getLastRow() <= getMaxNumberOfStudent(currentFolder)) {
+    sendSuccessEmail(currentFolder, range, sheet);
   } else if (
     range.getLastRow() <=
-    maxNumberOfStudentMap.get(spreadsheetID) +
-      numberOfWaitingListMap.get(spreadsheetID)
+    getMaxNumberOfStudent(currentFolder) + getNumberOfWaitingList(currentFolder)
   ) {
-    sendWaitingList(spreadsheetID, range, sheet);
+    sendWaitingList(currentFolder, range, sheet);
   } else {
     const activeForm = FormApp.openByUrl(
       SpreadsheetApp.getActiveSpreadsheet().getFormUrl()
@@ -250,25 +324,25 @@ function SignUpFormOnSubmit(e: GoogleAppsScript.Events.SheetsOnFormSubmit) {
 }
 
 function sendSuccessEmail(
-  spreadSheetID: string,
+  currentFolder: GoogleAppsScript.Drive.Folder,
   range: GoogleAppsScript.Spreadsheet.Range,
   sheet: GoogleAppsScript.Spreadsheet.Sheet
 ) {
   const emailAddress: string = sheet.getRange(range.getLastRow(), 2).getValue();
 
-  const email: Email = successEmail.get(spreadSheetID);
+  const email: Email = getEmailByName(currentFolder, "正取 email");
 
   MailApp.sendEmail(emailAddress, email.subject, email.body);
 }
 
 function sendWaitingList(
-  spreadSheetID: string,
+  currentFolder: GoogleAppsScript.Drive.Folder,
   range: GoogleAppsScript.Spreadsheet.Range,
   sheet: GoogleAppsScript.Spreadsheet.Sheet
 ) {
   const emailAddress: string = sheet.getRange(range.getLastRow(), 2).getValue();
 
-  const email = waitingListEmail.get(spreadSheetID);
+  const email = getEmailByName(currentFolder, "備取 email");
 
   MailApp.sendEmail(emailAddress, email.subject, email.body);
 }

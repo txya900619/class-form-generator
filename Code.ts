@@ -310,14 +310,18 @@ function SignUpFormOnSubmit(e: GoogleAppsScript.Events.SheetsOnFormSubmit) {
   const currentFolder = DriveApp.getFileById(spreadsheetID).getParents().next();
   const range = e.range;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  if (range.getLastRow() <= getMaxNumberOfStudent(currentFolder)) {
+  const maxNumberOfStudent = getMaxNumberOfStudent(currentFolder);
+  const numberOfWaitingList = getNumberOfWaitingList(currentFolder);
+  const spreadsheetLastRow = range.getLastRow();
+  Logger.log(maxNumberOfStudent);
+  Logger.log(numberOfWaitingList);
+  Logger.log(spreadsheetLastRow);
+  if (spreadsheetLastRow - 1 <= maxNumberOfStudent) {
     sendSuccessEmail(currentFolder, range, sheet);
-  } else if (
-    range.getLastRow() <=
-    getMaxNumberOfStudent(currentFolder) + getNumberOfWaitingList(currentFolder)
-  ) {
-    sendWaitingList(currentFolder, range, sheet);
   } else {
+    sendWaitingList(currentFolder, range, sheet);
+  }
+  if (spreadsheetLastRow - 1 === maxNumberOfStudent + numberOfWaitingList) {
     const activeForm = FormApp.openByUrl(
       SpreadsheetApp.getActiveSpreadsheet().getFormUrl()
     );

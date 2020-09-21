@@ -19,6 +19,7 @@ function doPost(e) {
   const findFolder = semesterFolder.getFoldersByName(folderName);
   let currentFolder: GoogleAppsScript.Drive.Folder;
   const date = new Date(param.date);
+  date.setDate(date.getDay() - 1);
   if (findFolder.hasNext()) {
     currentFolder = findFolder.next();
   } else {
@@ -39,7 +40,7 @@ function doPost(e) {
     classInformation
   );
   createFeedbackForm(folderName, currentFolder, formTitle);
-
+  setProperty(signUpInfo, formTitle, semester);
   ScriptApp.newTrigger("sendPriorNotificationEmail")
     .timeBased()
     .at(date)
@@ -59,6 +60,8 @@ function setProperty(
   const current = properties.getProperty("current");
   if (!current) {
     properties.setProperty(semester + formTitle, JSON.stringify(signUpInfo));
+    properties.setProperty("current", semester + formTitle);
+    return;
   }
   let tempCurrent: string = current;
   while (true) {
@@ -420,6 +423,11 @@ function sendPriorNotificationEmail() {
     MailApp.sendEmail(emailAddr[0][0], subject, emailBody);
   }
 
+  if (!currentData.next) {
+    properties.deleteProperty(current);
+    properties.deleteProperty("current");
+    return;
+  }
   properties.setProperty("current", currentData.next);
   properties.deleteProperty(current);
 }

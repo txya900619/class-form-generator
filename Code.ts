@@ -18,6 +18,7 @@ function doPost(e) {
   const semesterFolder = rootFolder.getFoldersByName(semester).next();
   const findFolder = semesterFolder.getFoldersByName(folderName);
   let currentFolder: GoogleAppsScript.Drive.Folder;
+  const date = new Date(param.date);
   if (findFolder.hasNext()) {
     currentFolder = findFolder.next();
   } else {
@@ -29,7 +30,7 @@ function doPost(e) {
     maxNumberOfStudent,
     numberOfWaitingList
   );
-  createSignUpForm(
+  const signUpInfo = createSignUpForm(
     folderName,
     currentFolder,
     signUpFormDescription,
@@ -38,6 +39,37 @@ function doPost(e) {
     classInformation
   );
   createFeedbackForm(folderName, currentFolder, formTitle);
+
+  ScriptApp.newTrigger("sendPriorNotificationEmail")
+    .timeBased()
+    .at(date)
+    .inTimezone("Asia/Taipei")
+    .create();
+}
+
+function setProperty(
+  signUpInfo: {
+    signUpSpreadsheetID: string;
+    priorNotificationEmailDocsID: string;
+  },
+  formTitle: string,
+  semester: string
+) {
+  const properties = PropertiesService.getScriptProperties();
+  const current = properties.getProperty("current");
+  if (!current) {
+    properties.setProperty(semester + formTitle, JSON.stringify(signUpInfo));
+  }
+  let tempCurrent: string = current;
+  while (true) {
+    const tempCurrentData = JSON.parse(properties.getProperty(tempCurrent));
+    if (!tempCurrentData.next) {
+      tempCurrentData.next = semester + formTitle;
+      properties.setProperty(current, JSON.stringify(tempCurrentData));
+      break;
+    }
+    tempCurrent = tempCurrentData.next;
+  }
 }
 
 function createConfigSpreadsheet(
@@ -56,7 +88,7 @@ function setConfigSpreadsheet(
   sheet.appendRow(["正取人數上限", "備取人數"]);
   sheet.appendRow([maxNumberOfStudent, numberOfWaitingList]);
 }
-
+//return signUpSpreadsheetID and priorNotificationEmailDocsID
 function createSignUpForm(
   folderName: string,
   currentFolder: GoogleAppsScript.Drive.Folder,
@@ -64,7 +96,7 @@ function createSignUpForm(
   courseStatement: string,
   title: string,
   classInformation: string
-) {
+): { signUpSpreadsheetID: string; priorNotificationEmailDocsID: string } {
   const formID = createFormInFolder(folderName + " 報名表單", currentFolder);
   const spreadsheetID = createSpreadsheetInFolder(
     folderName + " 報名表單（回應）",
@@ -73,12 +105,18 @@ function createSignUpForm(
   setSignUpFormItem(formID, description, courseStatement, title, spreadsheetID);
   setSuccessEmail(currentFolder, title, classInformation);
   setWaitingListEmail(currentFolder, title);
-  setPriorNotificationEmail(currentFolder, title, classInformation);
+  const priorNotificationEmailDocsID = setPriorNotificationEmail(
+    currentFolder,
+    title,
+    classInformation
+  );
 
   ScriptApp.newTrigger("SignUpFormOnSubmit")
     .forSpreadsheet(SpreadsheetApp.openById(spreadsheetID))
     .onFormSubmit()
     .create();
+
+  return { signUpSpreadsheetID: spreadsheetID, priorNotificationEmailDocsID };
 }
 
 function createFeedbackForm(
@@ -191,15 +229,19 @@ function setFeedbackItem(formID: string, title: string, spreadsheetID: string) {
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetID);
 }
 
+// return docsID
 function addDocumentWithFolderAndNameAndHeaderAndFooter(
   currentFolder: GoogleAppsScript.Drive.Folder,
   name: string,
   header: string,
   footer: string
-) {
-  const docs = DocumentApp.openById(createDocsInFolder(name, currentFolder));
+): string {
+  const docsID = createDocsInFolder(name, currentFolder);
+  const docs = DocumentApp.openById(docsID);
   docs.addHeader().setText(header);
   docs.addFooter().setText(footer);
+
+  return docsID;
 }
 
 function setSuccessEmail(
@@ -250,11 +292,12 @@ function setWaitingListEmail(
   );
 }
 
+// return priorNotificationEmailDocsID
 function setPriorNotificationEmail(
   currentFolder: GoogleAppsScript.Drive.Folder,
   formTitle: string,
   classInformation: string
-) {
+): string {
   const subject = `【 ${formTitle} 】行前通知信 by NPC `;
   const body =
     "您好, \n\n" +
@@ -266,7 +309,7 @@ function setPriorNotificationEmail(
     "Best regards,\n" +
     "NPC 北科程式設計研究社";
 
-  addDocumentWithFolderAndNameAndHeaderAndFooter(
+  return addDocumentWithFolderAndNameAndHeaderAndFooter(
     currentFolder,
     "行前 email",
     subject,
@@ -356,6 +399,30 @@ function sendWaitingList(
   MailApp.sendEmail(emailAddress, email.subject, email.body);
 }
 
+function sendPriorNotificationEmail() {
+  const properties = PropertiesService.getScriptProperties();
+  const current = properties.getProperty("current");
+  const currentData: {
+    signUpSpreadsheetID: string;
+    priorNotificationEmailDocsID: string;
+    next: string;
+  } = JSON.parse(properties.getProperty(current));
+  const sheet = SpreadsheetApp.openById(
+    currentData.signUpSpreadsheetID
+  ).getSheets()[0];
+  const emailDocs = DocumentApp.openById(
+    currentData.priorNotificationEmailDocsID
+  );
+  const subject = emailDocs.getHeader().getText();
+  const emailBody = emailDocs.getFooter().getText();
+  for (let i = 2; i <= sheet.getLastRow(); i++) {
+    const emailAddr = sheet.getSheetValues(i, 2, 1, 1);
+    MailApp.sendEmail(emailAddr[0][0], subject, emailBody);
+  }
+
+  properties.setProperty("current", currentData.next);
+  properties.deleteProperty(current);
+}
 interface Email {
   subject: string;
   body: string;

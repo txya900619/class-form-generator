@@ -213,6 +213,9 @@ function setSignUpFormItem(
   }
 
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetID);
+  const sheet = SpreadsheetApp.openById(spreadsheetID).getSheets()[0];
+  sheet.getRange(1, 7).setValue("token");
+  sheet.getRange(1, 8).setValue("已簽到");
 }
 
 function setFeedbackItem(formID: string, title: string, spreadsheetID: string) {
@@ -326,14 +329,17 @@ function setPriorNotificationEmail(
 ): string {
   const subject = `【 ${formTitle} 】行前通知信 by NPC `;
   const body =
-    "您好, \n\n" +
-    `提醒您，【 ${formTitle} 】即將於明天晚上舉辦！\n` +
-    "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。\n\n" +
-    classInformation +
-    "\n若有任何疑問，歡迎隨時連絡我們。\n" +
-    "期待在課程與您相見:)\n\n" +
-    "Best regards,\n" +
-    "NPC 北科程式設計研究社";
+    '<div style="width: fit-content; margin: auto;">' +
+    "您好, <br /><br />" +
+    `提醒您，【 ${formTitle} 】即將於明天晚上舉辦！<br />` +
+    "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。<br /><br />" +
+    classInformation.replace(/\n/g, "<br />") +
+    '<br /><img src="cid:qrcodeImg" style="display: block; margin: auto;" /><br /><br />' +
+    "若有任何疑問，歡迎隨時連絡我們。<br />" +
+    "期待在課程與您相見:)<br /><br />" +
+    "Best regards,<br />" +
+    "NPC 北科程式設計研究社" +
+    "</div>";
 
   return addDocumentWithFolderAndNameAndHeaderAndFooter(
     currentFolder,
@@ -382,9 +388,20 @@ function SignUpFormOnSubmit(e: GoogleAppsScript.Events.SheetsOnFormSubmit) {
   const maxNumberOfStudent = getMaxNumberOfStudent(currentFolder);
   const numberOfWaitingList = getNumberOfWaitingList(currentFolder);
   const spreadsheetLastRow = range.getLastRow();
-  Logger.log(maxNumberOfStudent);
-  Logger.log(numberOfWaitingList);
-  Logger.log(spreadsheetLastRow);
+
+  const rawHash = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    sheet.getRange(spreadsheetLastRow, 1).getValue() +
+      sheet.getRange(spreadsheetLastRow, 4),
+    Utilities.Charset.UTF_8
+  );
+  const hash = rawHash
+    .map(function (v) {
+      return ("0" + (v < 0 ? v + 256 : v).toString(16)).slice(-2);
+    })
+    .join("");
+  sheet.getRange(spreadsheetLastRow, 7).setValue(hash);
+
   if (spreadsheetLastRow - 1 <= maxNumberOfStudent) {
     sendSuccessEmail(currentFolder, range, sheet);
   } else {
@@ -443,7 +460,24 @@ function sendPriorNotificationEmail() {
   const emailBody = emailDocs.getFooter().getText();
   for (let i = 2; i <= sheet.getLastRow(); i++) {
     const emailAddr = sheet.getSheetValues(i, 2, 1, 1);
-    MailApp.sendEmail(emailAddr[0][0], subject, emailBody);
+    const token = sheet.getRange(i, 7).getValue();
+    const qrcodeImgBlob = UrlFetchApp.fetch(
+      "https://chart.googleapis.com/chart",
+      {
+        method: "post",
+        payload: {
+          cht: "qr",
+          chl: token,
+          chs: "300x300",
+        },
+      }
+    )
+      .getBlob()
+      .setName("qrcodeImgBlob");
+    MailApp.sendEmail(emailAddr[0][0], subject, emailBody, {
+      htmlBody: emailBody,
+      inlineImages: { qrcodeImg: qrcodeImgBlob },
+    });
   }
 
   if (!currentData.next) {

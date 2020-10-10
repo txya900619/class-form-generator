@@ -18,8 +18,11 @@ function doPost(e) {
   const semesterFolder = rootFolder.getFoldersByName(semester).next();
   const findFolder = semesterFolder.getFoldersByName(folderName);
   let currentFolder: GoogleAppsScript.Drive.Folder;
+
+  // const date = new Date(2020, 10 - 1, 20, 00);
+
   const date = new Date(param.date);
-  date.setDate(date.getDay() - 1);
+  date.setDate(date.getMinutes() - 1);
   if (findFolder.hasNext()) {
     currentFolder = findFolder.next();
   } else {
@@ -57,18 +60,33 @@ function setProperty(
   semester: string
 ) {
   const properties = PropertiesService.getScriptProperties();
-  const current = properties.getProperty("current");
+
+  // properties.setProperty(semester + formTitle, JSON.stringify(signUpInfo));
+  // properties.setProperty("current", semester + formTitle);
+  // return;
+
+  let current: string = properties.getProperty("current");
+  let tempCurrent: string = current;
+
   if (!current) {
     properties.setProperty(semester + formTitle, JSON.stringify(signUpInfo));
     properties.setProperty("current", semester + formTitle);
+    tempCurrent = semester + formTitle;
     return;
   }
-  let tempCurrent: string = current;
+
+  if (!properties.getProperty(tempCurrent)) {
+    properties.setProperty(semester + formTitle, JSON.stringify(signUpInfo));
+    properties.setProperty("current", semester + formTitle);
+    tempCurrent = semester + formTitle;
+    return;
+  }
+
   while (true) {
     const tempCurrentData = JSON.parse(properties.getProperty(tempCurrent));
     if (!tempCurrentData.next) {
       tempCurrentData.next = semester + formTitle;
-      properties.setProperty(current, JSON.stringify(tempCurrentData));
+      properties.setProperty(tempCurrent, JSON.stringify(tempCurrentData));
       break;
     }
     tempCurrent = tempCurrentData.next;
@@ -182,12 +200,17 @@ function setSignUpFormItem(
   form.addTextItem().setTitle("班級").setRequired(true);
   form.addTextItem().setTitle("學號").setRequired(true);
   form.addTextItem().setTitle("姓名").setRequired(true);
-  form.addSectionHeaderItem().setTitle("課程聲明").setHelpText(courseStatement);
-  let choiceItem = form.addMultipleChoiceItem();
-  choiceItem
-    .setTitle("已看過課程聲明")
-    .setChoices([choiceItem.createChoice("確認")])
-    .setRequired(true);
+  if (courseStatement) {
+    form
+      .addSectionHeaderItem()
+      .setTitle("課程聲明")
+      .setHelpText(courseStatement);
+    let choiceItem = form.addMultipleChoiceItem();
+    choiceItem
+      .setTitle("已看過課程聲明")
+      .setChoices([choiceItem.createChoice("確認")])
+      .setRequired(true);
+  }
 
   form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheetID);
 }

@@ -2,8 +2,18 @@ function doGet() {
   return ContentService.createTextOutput("cc");
 }
 
-function doPost(e) {
-  const param = e.parameter;
+function doPost(e: GoogleAppsScript.Events.DoPost) {
+  const param: {
+    formTitle: string;
+    semester: string;
+    folderName: string;
+    courseStatement?: string;
+    classInformation: string;
+    signUpFormDescription: string;
+    maxNumberOfStudent: number;
+    numberOfWaitingList: number;
+    date: number;
+  } = JSON.parse(e.postData.contents);
   const formTitle = param.formTitle;
   const semester = param.semester;
   const folderName = param.folderName;
@@ -106,7 +116,7 @@ function setConfigSpreadsheet(
   numberOfWaitingList: number
 ) {
   const sheet = SpreadsheetApp.openById(spreadSheetID).getSheets()[0];
-  sheet.appendRow(["正取人數上限", "備取人數"]);
+  sheet.appendRow(["正取人數上限", "備取人數", "已結束"]);
   sheet.appendRow([maxNumberOfStudent, numberOfWaitingList]);
 }
 //return signUpSpreadsheetID and priorNotificationEmailDocsID
@@ -250,7 +260,7 @@ function setFeedbackItem(formID: string, title: string, spreadsheetID: string) {
       ),
       choiceItem.createChoice(
         'Swift / iOS App (應用在 iOS / MacOS 等等的程式語言) (需要自備 Mac 筆電 or " 黑蘋果")'
-      ),
+      )
     ])
     .showOtherOption(true)
     .setRequired(true);
@@ -358,7 +368,7 @@ function getEmailByName(
 
   return {
     subject: docs.getHeader().getText(),
-    body: docs.getFooter().getText(),
+    body: docs.getFooter().getText()
   };
 }
 
@@ -468,15 +478,15 @@ function sendPriorNotificationEmail() {
         payload: {
           cht: "qr",
           chl: token,
-          chs: "300x300",
-        },
+          chs: "300x300"
+        }
       }
     )
       .getBlob()
       .setName("qrcodeImgBlob");
     MailApp.sendEmail(emailAddr[0][0], subject, emailBody, {
       htmlBody: emailBody,
-      inlineImages: { qrcodeImg: qrcodeImgBlob },
+      inlineImages: { qrcodeImg: qrcodeImgBlob }
     });
   }
 

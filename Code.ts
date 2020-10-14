@@ -246,7 +246,7 @@ function setFeedbackItem(formID: string, title: string, spreadsheetID: string) {
     .setBounds(1, 5)
     .setLabels("太慢", "太快")
     .setRequired(true);
-  let choiceItem = form.addMultipleChoiceItem();
+  let choiceItem = form.addCheckboxItem();
   choiceItem
     .setTitle("未來希望 NPC 開放哪些課程？")
     .setChoices([

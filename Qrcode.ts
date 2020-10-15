@@ -14,18 +14,17 @@ function doPost(e: GoogleAppsScript.Events.DoPost) {
   }
 
   const sheet = SpreadsheetApp.openById(data.spreadsheetsID).getSheets()[0];
-
   const row = sheet.createTextFinder(data.studentToken).findNext().getRow();
-
-  if (data.paid) {
-    sheet.getRange(row, 8).setValue("v");
-  }
-
   const studentID = sheet.getRange(row, 4).getValue();
 
-  return ContentService.createTextOutput(
-    JSON.stringify({ isClubMember: isClubMember(studentID) })
-  );
+  const clubMember = isClubMember(studentID);
+
+  if (data.paid || clubMember) {
+    sheet.getRange(row, 8).setValue("v");
+    return ContentService.createTextOutput(JSON.stringify({ success: true }));
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ success: false }));
 }
 
 function isClubMember(studentID: string) {

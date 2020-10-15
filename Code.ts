@@ -290,15 +290,18 @@ function setSuccessEmail(
 ) {
   const subject = `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【正取】`;
   const body =
-    "Hi, \n\n" +
-    `感謝您報名 NPC 北科程式設計研究社 ${formTitle}\n` +
-    "在課程開始前一天，我們會再次寄信提醒您！\n\n" +
-    "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。\n\n" +
-    classInformation +
-    "\n若有任何疑問，歡迎隨時連絡我們。\n" +
-    "期待在課程與您相見:)\n\n" +
-    "Best regards,\n" +
-    "NPC 北科程式設計研究社";
+    '<div style="width: fit-content; margin: auto;">' +
+    "Hi, <br /><br />" +
+    `感謝您報名 NPC 北科程式設計研究社 ${formTitle}<br />` +
+    "在課程開始前一天，我們會再次寄信提醒您！<br /><br />" +
+    "另外，由於資源寶貴，若臨時未能前來請您務必及早回信告知，讓備取學員得以遞補，謝謝您。<br /><br />" +
+    classInformation.replace(/\n/g, "<br />") +
+    '<br /><img src="cid:qrcodeImg" style="display: block; margin: auto;" /><br /><br />' +
+    "若有任何疑問，歡迎隨時連絡我們。<br />" +
+    "期待在課程與您相見:)<br /><br />" +
+    "Best regards,<br />" +
+    "NPC 北科程式設計研究社" +
+    "</div>";
 
   addDocumentWithFolderAndNameAndHeaderAndFooter(
     currentFolder,
@@ -315,13 +318,15 @@ function setWaitingListEmail(
 ) {
   const subject = `【 報名成功通知 】${formTitle} by NPC 北科程式設計研究社【備取】`;
   const body =
-    "Hi, \n\n" +
-    `感謝您報名 NPC 北科程式設計研究社 ${formTitle}\n` +
-    "為了保證上課品質，我們人數已達到上限，如果有人放棄資格，我們會儘速通知您！\n\n" +
-    "若有任何疑問，歡迎隨時連絡我們。\n" +
-    "由衷感謝您:)\n\n" +
-    "Best regards,\n" +
-    "NPC 北科程式設計研究社";
+    '<div style="width: fit-content; margin: auto;">' +
+    "Hi, <br /><br />" +
+    `感謝您報名 NPC 北科程式設計研究社 ${formTitle}<br />` +
+    "為了保證上課品質，我們人數已達到上限，如果有人放棄資格，我們會儘速通知您！<br /><br />" +
+    "若有任何疑問，歡迎隨時連絡我們。<br />" +
+    "由衷感謝您:)<br /><br />" +
+    "Best regards,<br />" +
+    "NPC 北科程式設計研究社" +
+    "</div>";
 
   addDocumentWithFolderAndNameAndHeaderAndFooter(
     currentFolder,
@@ -413,7 +418,7 @@ function SignUpFormOnSubmit(e: GoogleAppsScript.Events.SheetsOnFormSubmit) {
   sheet.getRange(spreadsheetLastRow, 7).setValue(hash);
 
   if (spreadsheetLastRow - 1 <= maxNumberOfStudent) {
-    sendSuccessEmail(currentFolder, range, sheet);
+    sendSuccessEmail(currentFolder, range, sheet, hash);
   } else {
     sendWaitingList(currentFolder, range, sheet);
   }
@@ -431,13 +436,31 @@ function SignUpFormOnSubmit(e: GoogleAppsScript.Events.SheetsOnFormSubmit) {
 function sendSuccessEmail(
   currentFolder: GoogleAppsScript.Drive.Folder,
   range: GoogleAppsScript.Spreadsheet.Range,
-  sheet: GoogleAppsScript.Spreadsheet.Sheet
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  token: string
 ) {
   const emailAddress: string = sheet.getRange(range.getLastRow(), 2).getValue();
-
   const email: Email = getEmailByName(currentFolder, "正取 email");
+  const qrcodeImgBlob = UrlFetchApp.fetch(
+    "https://chart.googleapis.com/chart",
+    {
+      method: "post",
+      payload: {
+        cht: "qr",
+        chl: token,
+        chs: "300x300"
+      }
+    }
+  )
+    .getBlob()
+    .setName("qrcodeImgBlob");
 
-  MailApp.sendEmail(emailAddress, email.subject, email.body);
+  MailApp.sendEmail({
+    to: emailAddress,
+    subject: email.subject,
+    htmlBody: email.body,
+    inlineImages: { qrcodeImg: qrcodeImgBlob }
+  });
 }
 
 function sendWaitingList(
@@ -449,7 +472,11 @@ function sendWaitingList(
 
   const email = getEmailByName(currentFolder, "備取 email");
 
-  MailApp.sendEmail(emailAddress, email.subject, email.body);
+  MailApp.sendEmail({
+    to: emailAddress,
+    subject: email.subject,
+    htmlBody: email.body
+  });
 }
 
 function sendPriorNotificationEmail() {
@@ -484,7 +511,9 @@ function sendPriorNotificationEmail() {
     )
       .getBlob()
       .setName("qrcodeImgBlob");
-    MailApp.sendEmail(emailAddr[0][0], subject, emailBody, {
+    MailApp.sendEmail({
+      to: emailAddr[0][0],
+      subject: subject,
       htmlBody: emailBody,
       inlineImages: { qrcodeImg: qrcodeImgBlob }
     });

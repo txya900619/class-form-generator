@@ -29,7 +29,7 @@ function doPost(e: GoogleAppsScript.Events.DoPost) {
       }
       activeCourses.push({
         name: subSubFolderName,
-        spreadsheetsID: sheets.getRange(1, 4).getValue()
+        spreadsheetsID: sheets.getRange(2, 4).getValue()
       });
     }
     if (activeCourses.length > 0) {

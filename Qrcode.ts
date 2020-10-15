@@ -15,6 +15,12 @@ function doPost(e: GoogleAppsScript.Events.DoPost) {
 
   const sheet = SpreadsheetApp.openById(data.spreadsheetsID).getSheets()[0];
   const row = sheet.createTextFinder(data.studentToken).findNext().getRow();
+
+  if (sheet.getRange(row, 8).getValue() !== "") {
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: false, isSignIn: true })
+    );
+  }
   const studentID = sheet.getRange(row, 4).getValue();
 
   const clubMember = isClubMember(studentID);

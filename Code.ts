@@ -38,12 +38,6 @@ function doPost(e: GoogleAppsScript.Events.DoPost) {
   } else {
     currentFolder = semesterFolder.createFolder(folderName);
   }
-  const configSpreadsheetID = createConfigSpreadsheet(currentFolder);
-  setConfigSpreadsheet(
-    configSpreadsheetID,
-    maxNumberOfStudent,
-    numberOfWaitingList
-  );
   const signUpInfo = createSignUpForm(
     folderName,
     currentFolder,
@@ -51,6 +45,13 @@ function doPost(e: GoogleAppsScript.Events.DoPost) {
     courseStatement,
     formTitle,
     classInformation
+  );
+  const configSpreadsheetID = createConfigSpreadsheet(currentFolder);
+  setConfigSpreadsheet(
+    configSpreadsheetID,
+    maxNumberOfStudent,
+    numberOfWaitingList,
+    signUpInfo.signUpSpreadsheetID
   );
   createFeedbackForm(folderName, currentFolder, formTitle);
   setProperty(signUpInfo, formTitle, semester);
@@ -113,11 +114,22 @@ function createConfigSpreadsheet(
 function setConfigSpreadsheet(
   spreadSheetID: string,
   maxNumberOfStudent: number,
-  numberOfWaitingList: number
+  numberOfWaitingList: number,
+  signUpSpreadsheetID: string
 ) {
   const sheet = SpreadsheetApp.openById(spreadSheetID).getSheets()[0];
-  sheet.appendRow(["正取人數上限", "備取人數", "已結束"]);
-  sheet.appendRow([maxNumberOfStudent, numberOfWaitingList]);
+  sheet.appendRow([
+    "正取人數上限",
+    "備取人數",
+    "已結束",
+    "報名 spreadsheets ID"
+  ]);
+  sheet.appendRow([
+    maxNumberOfStudent,
+    numberOfWaitingList,
+    "",
+    signUpSpreadsheetID
+  ]);
 }
 //return signUpSpreadsheetID and priorNotificationEmailDocsID
 function createSignUpForm(

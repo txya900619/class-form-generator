@@ -23,17 +23,13 @@ function doPost(e: GoogleAppsScript.Events.DoPost) {
         continue;
       }
       const spreadsheetsID = settingIter.next().getId();
-      if (
-        SpreadsheetApp.openById(spreadsheetsID)
-          .getSheets()[0]
-          .getRange(2, 3)
-          .getValue() != ""
-      ) {
+      const sheets = SpreadsheetApp.openById(spreadsheetsID).getSheets()[0];
+      if (sheets.getRange(2, 3).getValue() != "") {
         continue;
       }
       activeCourses.push({
         name: subSubFolderName,
-        spreadsheetsID: spreadsheetsID
+        spreadsheetsID: sheets.getRange(1, 4).getValue()
       });
     }
     if (activeCourses.length > 0) {

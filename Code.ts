@@ -454,15 +454,7 @@ function sendSuccessEmail(
   const emailAddress: string = sheet.getRange(range.getLastRow(), 2).getValue();
   const email: Email = getEmailByName(currentFolder, "正取 email");
   const qrcodeImgBlob = UrlFetchApp.fetch(
-    "https://chart.googleapis.com/chart",
-    {
-      method: "post",
-      payload: {
-        cht: "qr",
-        chl: token,
-        chs: "300x300"
-      }
-    }
+    `http://api.qrserver.com/v1/create-qr-code/?data=${token}&size=300x300`
   )
     .getBlob()
     .setName("qrcodeImgBlob");
@@ -511,15 +503,7 @@ function sendPriorNotificationEmail() {
     const emailAddr = sheet.getSheetValues(i, 2, 1, 1);
     const token = sheet.getRange(i, 7).getValue();
     const qrcodeImgBlob = UrlFetchApp.fetch(
-      "https://chart.googleapis.com/chart",
-      {
-        method: "post",
-        payload: {
-          cht: "qr",
-          chl: token,
-          chs: "300x300"
-        }
-      }
+      `http://api.qrserver.com/v1/create-qr-code/?data=${token}&size=300x300`
     )
       .getBlob()
       .setName("qrcodeImgBlob");

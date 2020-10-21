@@ -1,3 +1,5 @@
+//TODO: save class info in folder, it can let verify faster
+
 const folderID = "0B0IVnu5YlOTNZzZsV21LLUd2VHc";
 
 function doPost(e: GoogleAppsScript.Events.DoPost) {

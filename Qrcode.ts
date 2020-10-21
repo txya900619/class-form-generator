@@ -1,3 +1,5 @@
+//TODO: check isClubMember in signUpFormOnSubmit
+
 function doPost(e: GoogleAppsScript.Events.DoPost) {
   const data: {
     studentToken: string;

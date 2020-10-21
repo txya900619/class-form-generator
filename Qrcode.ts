@@ -46,7 +46,7 @@ function isClubMember(studentID: string) {
         if (
           SpreadsheetApp.openById(file.getId())
             .getSheets()[0]
-            .createTextFinder(studentID)
+            .createTextFinder(studentID.toUpperCase())
             .findAll().length != 0
         ) {
           result = true;
